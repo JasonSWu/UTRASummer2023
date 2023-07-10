@@ -30,7 +30,7 @@ def BeckersRixen(M0, nmin=None, nmax=None, perc=None, tol=None):
             ndx[ii] = np.random.randint(sm[1])  # Try again until you find a column without gaps
         Mp[:, sm[1] + ii] = M0[:, ndx[ii]]  # Duplicate the original nonzero data
         Md[:, sm[1] + ii] = Mp[:, sm[1] + ii] * (np.random.rand(sm[0]) > zcount)  # Zeroing some
-    
+
     zdx = np.where(Md == 0)
     adx = np.arange(sm[1], sm[1] + added)
     

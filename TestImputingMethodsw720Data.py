@@ -176,31 +176,31 @@ for i in range(7):
     axs[1, 2].set_title('RF w/ Chebyshev')
 
     plt.tight_layout()
-    #plt.show()
+    plt.show()
 
 wo_br_idx = np.array([0,2,4])
 w_br_idx = np.array([1,3,5])
 # Performance metrics with Cheby
 stats_without_cheby = [
-    np.mean(skews[:,wo_br_idx]), np.mean(kurts[:,wo_br_idx]), np.mean(rmses[:,wo_br_idx]), np.mean(r2[:,wo_br_idx])]
+    np.mean(skews[:,wo_br_idx]), np.mean(kurts[:,wo_br_idx]), np.mean(rmses[:,wo_br_idx]), np.mean(r2[:,wo_br_idx]), np.mean(maes[:,wo_br_idx])]
 # Performance metrics without Cheby
 stats_with_cheby = [
-    np.mean(skews[:,w_br_idx]), np.mean(kurts[:,w_br_idx]), np.mean(rmses[:,w_br_idx]), np.mean(r2[:,w_br_idx])]
+    np.mean(skews[:,w_br_idx]), np.mean(kurts[:,w_br_idx]), np.mean(rmses[:,w_br_idx]), np.mean(r2[:,w_br_idx]), np.mean(maes[:,w_br_idx])]
 
-cheby_headers = ['', 'skew', 'kurtosis', 'rms', 'R2']
+cheby_headers = ['', 'skew', 'kurtosis', 'RMS', 'r2', 'MAE']
 
 print(tabulate([['w/o Cheby'] + stats_without_cheby, ['w/ Cheby'] + stats_with_cheby], headers = cheby_headers, tablefmt='fancy_grid'))
 
 # Performance metrics per method
 avg_rms = np.mean(rmses, axis=0)
-avg_R2 = np.mean(r2, axis=0)
+avg_r2 = np.mean(r2, axis=0)
 avg_mae = np.mean(maes, axis=0)
 
 methods_headers = ['', 'KNN', 'KNN Cheby', 'Beckers Rixen', 'BR-Cheby', 'Random Forest', 'RF Cheby']
 
 print(
     tabulate(
-        [['avg RMS'] + avg_rms.tolist(), ['avg R2'] + avg_R2.tolist(), ['avg MAE'] + avg_mae.tolist()],
+        [['avg RMS'] + avg_rms.tolist(), ['avg r2'] + avg_r2.tolist(), ['avg MAE'] + avg_mae.tolist()],
         headers = methods_headers,
         tablefmt='fancy_grid'))
 
