@@ -4,88 +4,18 @@ from sklearn.impute import KNNImputer
 from sklearn.ensemble import RandomForestRegressor
 from scipy.special import chebyt
 from BeckersRixen import BeckersRixen
-import numbers
 import numpy as np
 import matplotlib.pyplot as plt
-import pylab 
 import scipy.stats as stats
 import statsmodels.api as sm
 from statsmodels.graphics.gofplots import qqplot_2samples
+from tabulate import tabulate
 
 
-def qqplot(x, y, quantiles=None, interpolation='nearest', ax=None, rug=False,
-           rug_length=0.05, rug_kwargs=None, **kwargs):
-    """Draw a quantile-quantile plot for `x` versus `y`.
-
-    Parameters
-    ----------
-    x, y : array-like
-        One-dimensional numeric arrays.
-
-    ax : matplotlib.axes.Axes, optional
-        Axes on which to plot. If not provided, the current axes will be used.
-
-    quantiles : int or array-like, optional
-        Quantiles to include in the plot. This can be an array of quantiles, in
-        which case only the specified quantiles of `x` and `y` will be plotted.
-        If this is an int `n`, then the quantiles will be `n` evenly spaced
-        points between 0 and 1. If this is None, then `min(len(x), len(y))`
-        evenly spaced quantiles between 0 and 1 will be computed.
-
-    interpolation : {‘linear’, ‘lower’, ‘higher’, ‘midpoint’, ‘nearest’}
-        Specify the interpolation method used to find quantiles when `quantiles`
-        is an int or None. See the documentation for numpy.quantile().
-
-    rug : bool, optional
-        If True, draw a rug plot representing both samples on the horizontal and
-        vertical axes. If False, no rug plot is drawn.
-
-    rug_length : float in [0, 1], optional
-        Specifies the length of the rug plot lines as a fraction of the total
-        vertical or horizontal length.
-
-    rug_kwargs : dict of keyword arguments
-        Keyword arguments to pass to matplotlib.axes.Axes.axvline() and
-        matplotlib.axes.Axes.axhline() when drawing rug plots.
-
-    kwargs : dict of keyword arguments
-        Keyword arguments to pass to matplotlib.axes.Axes.scatter() when drawing
-        the q-q plot.
-    """
-    # Get current axes if none are provided
-    if ax is None:
-        ax = plt.gca()
-
-    if quantiles is None:
-        quantiles = min(len(x), len(y))
-
-    # Compute quantiles of the two samples
-    if isinstance(quantiles, numbers.Integral):
-        quantiles = np.linspace(start=0, stop=1, num=int(quantiles))
-    else:
-        quantiles = np.atleast_1d(np.sort(quantiles))
-    x_quantiles = np.quantile(x, quantiles, method=interpolation)
-    y_quantiles = np.quantile(y, quantiles, method=interpolation)
-
-    # Draw the rug plots if requested
-    if rug:
-        # Default rug plot settings
-        rug_x_params = dict(ymin=0, ymax=rug_length, c='gray', alpha=0.5)
-        rug_y_params = dict(xmin=0, xmax=rug_length, c='gray', alpha=0.5)
-
-        # Override default setting by any user-specified settings
-        if rug_kwargs is not None:
-            rug_x_params.update(rug_kwargs)
-            rug_y_params.update(rug_kwargs)
-
-        # Draw the rug plots
-        for point in x:
-            ax.axvline(point, **rug_x_params)
-        for point in y:
-            ax.axhline(point, **rug_y_params)
-
-    # Draw the q-q plot
-    ax.scatter(x_quantiles, y_quantiles, **kwargs)
+def qqplot(x, y, ax=None, line="q"):
+    pp_x = sm.ProbPlot(x)
+    pp_y = sm.ProbPlot(y)
+    qqplot_2samples(pp_x, pp_y, ax=ax, line=line) #line = "45", "s", "r", "q"
 
 data = pd.read_csv('./EOF_720_log10.csv')
 
@@ -103,10 +33,12 @@ M0predX = M0[1:7, 174:].T
 
 # Run each imputation algorithm on each variable in the subset matrix
 
-# Initialize diagnostics tables
+# Initialize diagnostics tables, 6 methods of imputation
 rmses = np.zeros((subset2_rand.shape[0], 6))
 skews = np.zeros((subset2_rand.shape[0], 6))
 kurts = np.zeros((subset2_rand.shape[0], 6))
+r2 = np.zeros((subset2_rand.shape[0], 6))
+maes = np.zeros((subset2_rand.shape[0], 6))
 kl_divs = np.zeros((subset2_rand.shape[0], 6))
 for i in range(7):
     trainsubset = np.delete(subset2_rand.copy(), i, axis=0)
@@ -185,57 +117,90 @@ for i in range(7):
     rmses[i, 4] = np.sqrt(np.mean((target_vals - M0imputed_rf) ** 2))
     rmses[i, 5] = np.sqrt(np.mean((target_vals - M0imputed_rf_cheby) ** 2))
 
-    skews[i, 0] = pd.Series(M0imputed_knn[i, 174:]).skew()
-    skews[i, 1] = pd.Series(M0imputed_knn_cheby[i, 174:]).skew()
-    skews[i, 2] = pd.Series(M0imputed_br[i, 174:]).skew()
-    skews[i, 3] = pd.Series(M0imputed_br_cheby[i, 174:]).skew()
-    skews[i, 4] = pd.Series(M0imputed_rf).skew()
-    skews[i, 5] = pd.Series(M0imputed_rf_cheby).skew()
+    maes[i, 0] = np.mean(np.abs(target_vals - M0imputed_knn[i, 174:]))
+    maes[i, 1] = np.mean(np.abs(target_vals - M0imputed_knn_cheby[i, 174:]))
+    maes[i, 2] = np.mean(np.abs(target_vals - M0imputed_br[i, 174:]))
+    maes[i, 3] = np.mean(np.abs(target_vals - M0imputed_br_cheby[i, 174:]))
+    maes[i, 4] = np.mean(np.abs(target_vals - M0imputed_rf))
+    maes[i, 5] = np.mean(np.abs(target_vals - M0imputed_rf_cheby))
 
-    kurts[i, 0] = pd.Series(M0imputed_knn[i, 174:]).kurtosis()
-    kurts[i, 1] = pd.Series(M0imputed_knn_cheby[i, 174:]).kurtosis()
-    kurts[i, 2] = pd.Series(M0imputed_br[i, 174:]).kurtosis()
-    kurts[i, 3] = pd.Series(M0imputed_br_cheby[i, 174:]).kurtosis()
-    kurts[i, 4] = pd.Series(M0imputed_rf).kurtosis()
-    kurts[i, 5] = pd.Series(M0imputed_rf_cheby).kurtosis()
+    pd_knn = pd.Series(M0imputed_knn[i, 174:])
+    pd_knn_cheby = pd.Series(M0imputed_knn_cheby[i, 174:])
+    pd_br = pd.Series(M0imputed_br[i, 174:])
+    pd_br_cheby = pd.Series(M0imputed_br_cheby[i, 174:])
+    pd_rf = pd.Series(M0imputed_rf)
+    pd_rf_cheby = pd.Series(M0imputed_rf_cheby)
 
-    pp_x = sm.ProbPlot(target_vals)
-    pp_y = sm.ProbPlot(M0imputed_br[i, 174:])
-    qqplot_2samples(pp_x, pp_y, line="q") #line = "45", "s", "r", "q"
-    plt.show()
+    pd_target = pd.Series(target_vals)
+
+    r2[i, 0] = pd_knn.corr(pd_target)
+    r2[i, 1] = pd_knn_cheby.corr(pd_target)
+    r2[i, 2] = pd_br.corr(pd_target)
+    r2[i, 3] = pd_br_cheby.corr(pd_target)
+    r2[i, 4] = pd_rf.corr(pd_target)
+    r2[i, 5] = pd_rf_cheby.corr(pd_target)
+
+    skews[i, 0] = pd_knn.skew()
+    skews[i, 1] = pd_knn_cheby.skew()
+    skews[i, 2] = pd_br.skew()
+    skews[i, 3] = pd_br_cheby.skew()
+    skews[i, 4] = pd_rf.skew()
+    skews[i, 5] = pd_rf_cheby.skew()
+
+    kurts[i, 0] = pd_knn.kurtosis()
+    kurts[i, 1] = pd_knn_cheby.kurtosis()
+    kurts[i, 2] = pd_br.kurtosis()
+    kurts[i, 3] = pd_br_cheby.kurtosis()
+    kurts[i, 4] = pd_rf.kurtosis()
+    kurts[i, 5] = pd_rf_cheby.kurtosis()
 
     # QQ Plots for each method
     fig, axs = plt.subplots(2, 3, figsize=(12, 8))
 
-    qqplot(target_vals, M0imputed_knn[i, 174:], ax=axs[0, 0], interpolation='linear')
-    axs[0, 0].plot(target_vals, target_vals, color='red')
+    qqplot(target_vals, M0imputed_knn[i, 174:], ax=axs[0, 0], line="q")
     axs[0, 0].set_title('Imputing with KNN (k=4)')
 
-    qqplot(target_vals, M0imputed_br[i, 174:], ax=axs[0, 1])
-    axs[0, 1].plot(target_vals, target_vals, color='red')
+    qqplot(target_vals, M0imputed_br[i, 174:], ax=axs[0, 1], line="q")
     axs[0, 1].set_title('Imputing with BeckersRixen')
 
-    qqplot(target_vals, M0imputed_rf, ax=axs[0, 2])
-    axs[0, 2].plot(target_vals, target_vals, color='red')
+    qqplot(target_vals, M0imputed_rf, ax=axs[0, 2], line="q")
     axs[0, 2].set_title('Imputing with Random Forest')
 
-    qqplot(target_vals, M0imputed_knn_cheby[i, 174:], ax=axs[1, 0])
-    axs[1, 0].plot(target_vals, target_vals, color='red')
+    qqplot(target_vals, M0imputed_knn_cheby[i, 174:], ax=axs[1, 0], line="q")
     axs[1, 0].set_title('KNN (k=4) & Chebyshev')
 
-    qqplot(target_vals, M0imputed_br_cheby[i, 174:], ax=axs[1, 1])
-    axs[1, 1].plot(target_vals, target_vals, color='red')
+    qqplot(target_vals, M0imputed_br_cheby[i, 174:], ax=axs[1, 1], line="q")
     axs[1, 1].set_title('BeckersRixen & Chebyshev')
 
-    qqplot(target_vals, M0imputed_rf_cheby, ax=axs[1, 2])
-    axs[1, 2].plot(target_vals, target_vals, color='red')
+    qqplot(target_vals, M0imputed_rf_cheby, ax=axs[1, 2], line="q")
     axs[1, 2].set_title('RF w/ Chebyshev')
 
     plt.tight_layout()
-    plt.show()
+    #plt.show()
 
+wo_br_idx = np.array([0,2,4])
+w_br_idx = np.array([1,3,5])
+# Performance metrics with Cheby
+stats_without_cheby = [
+    np.mean(skews[:,wo_br_idx]), np.mean(kurts[:,wo_br_idx]), np.mean(rmses[:,wo_br_idx]), np.mean(r2[:,wo_br_idx])]
+# Performance metrics without Cheby
+stats_with_cheby = [
+    np.mean(skews[:,w_br_idx]), np.mean(kurts[:,w_br_idx]), np.mean(rmses[:,w_br_idx]), np.mean(r2[:,w_br_idx])]
 
+cheby_headers = ['', 'skew', 'kurtosis', 'rms', 'R2']
 
+print(tabulate([['w/o Cheby'] + stats_without_cheby, ['w/ Cheby'] + stats_with_cheby], headers = cheby_headers, tablefmt='fancy_grid'))
 
+# Performance metrics per method
+avg_rms = np.mean(rmses, axis=0)
+avg_R2 = np.mean(r2, axis=0)
+avg_mae = np.mean(maes, axis=0)
 
+methods_headers = ['', 'KNN', 'KNN Cheby', 'Beckers Rixen', 'BR-Cheby', 'Random Forest', 'RF Cheby']
+
+print(
+    tabulate(
+        [['avg RMS'] + avg_rms.tolist(), ['avg R2'] + avg_R2.tolist(), ['avg MAE'] + avg_mae.tolist()],
+        headers = methods_headers,
+        tablefmt='fancy_grid'))
 
