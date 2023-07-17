@@ -30,9 +30,15 @@ def BeckersRixen(M0, nmin=None, nmax=None, perc=None, tol=None):
             ndx[ii] = np.random.randint(sm[1])  # Try again until you find a column without gaps
         Mp[:, sm[1] + ii] = M0[:, ndx[ii]]  # Duplicate the original nonzero data
         Md[:, sm[1] + ii] = Mp[:, sm[1] + ii] * (np.random.rand(sm[0]) > zcount)  # Zeroing some
+    
+    #Remove testing columns from training columns
+    training_idx = np.array([True] * (sm[1] + added))
+    training_idx[ndx] = False
+    Md = Md[:, training_idx]
+    Mp = Mp[:, training_idx]
 
     zdx = np.where(Md == 0)
-    adx = np.arange(sm[1], sm[1] + added)
+    adx = np.arange(sm[1] - added, sm[1])
     
     initerror = np.sum((Mp[:, adx] - Md[:, adx]) ** 2)  # The initial error, now let's reduce it!
     itererror = initerror
