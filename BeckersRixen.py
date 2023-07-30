@@ -1,67 +1,56 @@
 import numpy as np
 
-def BeckersRixen(M0, nmin=None, nmax=None, perc=None, tol=None):
+def BeckersRixen(M0, test, nmin=1, nmax=None, val_perc=10, tol=1e-4):
     nnow = 1
     sm = M0.shape
+    m, n = sm
+    test_m, test_n = test.shape
     
-    if nmin is None:  # Default number of modes to use
-        nmin = 1
     if nmax is None:  # Default number of modes to use
         nmax = round(np.min(sm) / 2)
-    if perc is None:  # Default percentage of matrix to use as error est.
-        perc = 10
-    if tol is None:  # Default error tolerance
-        tol = 1e-4
         
     nmax = min(np.min(sm) - 1, nmax)
     
     # Count the zeros by row
-    zcount = np.sum(M0 == 0, axis=1) / sm[1]
+    # zcount = np.sum(M0 == 0, axis=1) / n
     
     # Add on the error estimate rows
-    added = int(np.ceil(sm[1] * perc / 100))   # How many to add?
-    Mp = np.zeros((sm[0], sm[1] + added))  # A bigger matrix with the added rows
-    Mp[:, :sm[1]] = M0
+    val_n = int(np.ceil(n * val_perc / 100))   # How many to train on?
+    Mp = M0.copy()
     Md = Mp.copy()
-    ndx = np.random.randint(sm[1], size=added)   # Make a random guess of columns to include
+    ndx = np.random.randint(n, size=val_n)   # Make a random guess of columns to include
     
-    for ii in range(added):
+    for ii in range(val_n):
         while np.prod(M0[:, ndx[ii]]) == 0:
-            ndx[ii] = np.random.randint(sm[1])  # Try again until you find a column without gaps
-        Mp[:, sm[1] + ii] = M0[:, ndx[ii]]  # Duplicate the original nonzero data
-        Md[:, sm[1] + ii] = Mp[:, sm[1] + ii] * (np.random.rand(sm[0]) > zcount)  # Zeroing some
+            ndx[ii] = np.random.randint(n)  # Try again until you find a column without gaps
+        Md[:, ndx[ii]] *= (np.random.rand(m) > zcount)  # Zeroing some
     
     #Remove testing columns from training columns
-    training_idx = np.array([True] * (sm[1] + added))
+    training_idx = np.array([True] * (n + added))
     training_idx[ndx] = False
     Md = Md[:, training_idx]
     Mp = Mp[:, training_idx]
 
     zdx = np.where(Md == 0)
-    adx = np.arange(sm[1] - added, sm[1])
+    adx = np.arange(n - added, n)
     
     initerror = np.sum((Mp[:, adx] - Md[:, adx]) ** 2)  # The initial error, now let's reduce it!
     itererror = initerror
     nerror = np.zeros(nmax)
     
     # Here's the loop for the number of modes used
+    # Don't reset the places at zdx to 0, BeckersRixen paper says not to
     while nnow <= nmax:
         itererror = initerror
         errorup = 2 * initerror
         olderrorup = 3 * initerror
-        Md[zdx] = 0
         Mdnew = Md.copy()
         
         while np.abs(errorup / olderrorup - 1) > tol:
             Md[zdx] = Mdnew[zdx]
             U, S, V = np.linalg.svd(Md, full_matrices=False)
             
-            for jj in range(nnow + 1, len(S)):
-                S[jj] = 0   # Truncate the modes
-                U[:, jj] = 0   # Truncate the modes
-                V[jj] = 0   # Truncate the modes
-            
-            Mdnew = U @ np.diag(S) @ V  # Form the new guess
+            Mdnew = np.dot(U[:,:nnow + 1], np.dot(np.diag(S[:nnow + 1]), V[:nnow + 1]))  # Form the new guess
             
             itererror = np.sum((Mp[:, adx] - Mdnew[:, adx]) ** 2)  # Find new error
             olderror = np.sum((Mp[:, adx] - Md[:, adx]) ** 2)  # Find error update
@@ -75,6 +64,9 @@ def BeckersRixen(M0, nmin=None, nmax=None, perc=None, tol=None):
         
         nnow += 1  # Take more nodes
     
-    Ma = Md[:, :sm[1]]
+    revert_idx = np.arange(n)
+    revert_idx[ndx] = adx
+    revert_idx[adx] = ndx
+    Ma = Md[:, revert_idx]
     
     return Ma, U, S, V

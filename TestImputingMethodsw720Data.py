@@ -90,8 +90,8 @@ def ImputingMethods():
         #M0imputed_knn_cheby = imputer.fit_transform(M0Cheby.T).T
 
         # Beckers-Rixen
-        M0imputed_br, U1, S1, V1 = BeckersRixen(M02)
-        M0imputed_br_cheby, U2, S2, V2 = BeckersRixen(M02Cheby)
+        M0imputed_br, U1, S1, V1 = BeckersRixen(M02, M02)
+        M0imputed_br_cheby, U2, S2, V2 = BeckersRixen(M02Cheby, M02Cheby)
 
         # Random Forest
         rf = RandomForestRegressor(n_estimators=100)
@@ -207,41 +207,15 @@ def ImputingMethods():
     #        [['avg RMS'] + avg_rms.tolist(), ['avg r2'] + avg_r2.tolist(), ['avg MAE'] + avg_mae.tolist()],
     #        headers = method_headers,
     #        tablefmt='fancy_grid'))
-    bare_table = [avg_rms.tolist(), avg_r2.tolist(), avg_mae.tolist()]
+    bare_table = np.array([rmses, r2, maes])
     return bare_table
 
-for i in range(21):
-    a,b,c,d,e,f,g,h,i,j,k,l = [],[],[],[],[],[],[],[],[],[],[],[]
-    a.append(ImputingMethods()[0][0])
-    b.append(ImputingMethods()[0][1])
-    c.append(ImputingMethods()[0][2])
-    d.append(ImputingMethods()[0][3])
-    e.append(ImputingMethods()[1][0])
-    f.append(ImputingMethods()[1][1])
-    g.append(ImputingMethods()[1][2])
-    h.append(ImputingMethods()[1][3])
-    i.append(ImputingMethods()[2][0])
-    j.append(ImputingMethods()[2][1])
-    k.append(ImputingMethods()[2][2])
-    l.append(ImputingMethods()[2][3])
-    sorted(a)
-    sorted(b)
-    sorted(c)
-    sorted(d)
-    sorted(e)
-    sorted(f)
-    sorted(g)
-    sorted(h)
-    sorted(i)
-    sorted(j)
-    sorted(k)
-    sorted(l)
+n_runs = int(input())
+accumulated_table = ImputingMethods()
+for _ in range(n_runs):
+    accumulated_table += ImputingMethods()
+accumulated_table /= n_runs + 1
 
-print("Average over 21 Runs")
-print([[(sum([a])/21), (sum([b])/21), (sum([c])/21), (sum([d])/21)], [(sum([e])/21), (sum([f])/21), (sum([g])/21), (sum([h])/21)], [(sum([i])/21), (sum([j])/21), (sum([k])/21), (sum([l])/21)]])
-print("2nd lowest value over 21 runs")
-print([[a[1],b[1],c[1],d[1]],[e[1],f[1],g[1],h[1]],[i[1],j[1],k[1],l[1]]])
-print("2nd highest value over 21 runs")
-print([[a[-2],b[-2],c[-2],d[-2]],[e[-2],f[-2],g[-2],h[-2]],[i[-2],j[-2],k[-2],l[-2]]])
+#print(accumulated_table)
 
 
